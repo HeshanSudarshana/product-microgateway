@@ -45,6 +45,14 @@ public class JavaInterceptorTestCase extends InterceptorTestCase {
         Assert.assertEquals(response.getData(), ResponseConstants.JSON_RESPONSE);
         Assert.assertEquals(response.getResponseCode(), 200, "Response code mismatched");
 
+        //test the path parameters and the matrix parameters
+        response = HttpClientRequest.doPost(getServiceURLHttp(
+                "/petstore/v1/pet;a=4;b=5/value1;x=10;y=15/uploadImage?bar=value2&test=value3"), "{'hello':'world'}",
+                headers);
+        Assert.assertNotNull(response);
+        Assert.assertEquals(response.getData(), ResponseConstants.JSON_RESPONSE_WITH_PATH_PARAMS);
+        Assert.assertEquals(response.getResponseCode(), 200, "Response code mismatched");
+
         //test json array payloads
         headers.put("X_JWT", "true");
         response = HttpClientRequest
@@ -77,6 +85,33 @@ public class JavaInterceptorTestCase extends InterceptorTestCase {
         Assert.assertEquals(response.getHeaders().get("test"), "value1");
         Assert.assertTrue(response.getData().contains("jon doe"));
         Assert.assertEquals(response.getResponseCode(), 201, "Response code mismatched");
+    }
+
+    @Test(description = "Test java interceptor reading the configurations")
+    public void testInterceptorConfigRead() throws Exception {
+        Map<String, String> headers = new HashMap<>();
+        headers.put(HttpHeaderNames.AUTHORIZATION.toString(), "Bearer " + jwtTokenProd);
+        HttpResponse response = HttpClientRequest
+                .doGet(getServiceURLHttp("/petstore/v1/user/john"), headers);
+        Assert.assertNotNull(response);
+        Assert.assertTrue(response.getData().contains("https://localhost:9444/analytics/v1.0/usage/upload-file"));
+        Assert.assertEquals(response.getResponseCode(), 200, "Response code mismatched");
+        response = HttpClientRequest
+                .doGet(getServiceURLHttp("/petstore/v1/user/john?config=int"), headers);
+        Assert.assertTrue(response.getData().contains("9590"));
+        response = HttpClientRequest
+                .doGet(getServiceURLHttp("/petstore/v1/user/john?config=float"), headers);
+        Assert.assertTrue(response.getData().contains("9595"));
+        response = HttpClientRequest
+                .doGet(getServiceURLHttp("/petstore/v1/user/john?config=boolean"), headers);
+        Assert.assertTrue(response.getData().contains("false"));
+        response = HttpClientRequest
+                .doGet(getServiceURLHttp("/petstore/v1/user/john?config=array"), headers);
+        Assert.assertTrue(response.getData().contains("https://localhost:9443/oauth2/token"));
+        response = HttpClientRequest
+                .doGet(getServiceURLHttp("/petstore/v1/user/john?config=map"), headers);
+        Assert.assertTrue(response.getData().contains("false"));
+
     }
 
     @AfterClass

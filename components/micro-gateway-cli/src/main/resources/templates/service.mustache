@@ -1,4 +1,3 @@
-import ballerina/log;
 import ballerina/http;
 import ballerina/time;
 import ballerina/runtime;{{#importModules}}
@@ -38,7 +37,7 @@ import wso2/gateway;
     {{#if @root.requestInterceptor}}
     int {{operationId}}_api_request_interceptor_index = -1;
     {{/if}}
-    {{#if @root.requestInterceptor}}
+    {{#if @root.responseInterceptor}}
     int {{operationId}}_api_response_interceptor_index = -1;
     {{/if}}
 
@@ -52,6 +51,9 @@ import wso2/gateway;
 {{/value}}{{/operations}}{{/value}}{{/paths}}
 
 {{>kubernetes}}
+
+//This variable is added for logging purposes
+string {{cut qualifiedServiceName " "}}Key = "{{api.name}}-{{api.version}}";
 
 @http:ServiceConfig {
     basePath: "{{basepath}}"{{!-- {{only one base path is allowed for all  endpoints}} --}},
@@ -106,22 +108,28 @@ service {{cut qualifiedServiceName " "}} on {{#api.transport}}{{#equals . "http"
             }
     }
     @gateway:RateLimit{policy : "{{resourceTier}}"}
-    resource function {{operationId}} (http:Caller outboundEp, http:Request req) {
+    resource function {{operationId}} (http:Caller outboundEp, http:Request req{{>pathParameters}}) {
         handleExpectHeaderFor{{cut qualifiedServiceName " "}}(outboundEp, req);
         runtime:InvocationContext invocationContext = runtime:getInvocationContext();
+
+        map<string> pathParams = { {{#parameters}}{{#equals in "path"}}
+            "{{name}}": <@untainted>{{name}}{{#unless @last}},{{/unless}} {{/equals}}{{/parameters}}
+        };
+        invocationContext.attributes["pathParams"] = pathParams;
+
         {{~#if @root.requestInterceptor}}
         {{#equals @root.requestInterceptor requestInterceptor}}
         {{else}}
         if({{operationId}}_api_request_interceptor_index == -1) {
         {{^@root.isJavaRequestInterceptor}}
             {{@root.requestInterceptor}}(outboundEp, req);
-            if(invocationContext.attributes.hasKey(gateway:RESPOND_DONE) && <boolean>invocationContext.attributes[gateway:RESPOND_DONE]) {
+            if (invocationContext.attributes.hasKey(gateway:RESPOND_DONE) && <boolean>invocationContext.attributes[gateway:RESPOND_DONE]) {
                 return;
             }
         {{/@root.isJavaRequestInterceptor}}
         } else {
-            if(!gateway:invokeRequestInterceptor({{operationId}}_api_request_interceptor_index, outboundEp, req)) {
-                if(respondFromJavaInterceptor{{cut qualifiedServiceName " "}}(invocationContext, <@untainted>outboundEp)) {
+            if (!gateway:invokeRequestInterceptor({{operationId}}_api_request_interceptor_index, outboundEp, req)) {
+                if (respondFromJavaInterceptor{{cut qualifiedServiceName " "}}(invocationContext, <@untainted>outboundEp)) {
                     // return only if  interceptor returned false and respond is called from interceptor.
                     return;
                 }
@@ -131,14 +139,14 @@ service {{cut qualifiedServiceName " "}} on {{#api.transport}}{{#equals . "http"
         if({{operationId}}_request_interceptor_index == -1) {
         {{^isJavaRequestInterceptor}}
             {{requestInterceptor}}(outboundEp, req);
-            if(invocationContext.attributes.hasKey(gateway:RESPOND_DONE) && <boolean>invocationContext.attributes[gateway:RESPOND_DONE]) {
+            if (invocationContext.attributes.hasKey(gateway:RESPOND_DONE) && <boolean>invocationContext.attributes[gateway:RESPOND_DONE]) {
                 return;
             }
         {{/isJavaRequestInterceptor}}
         } else {
             if(!gateway:invokeRequestInterceptor({{operationId}}_request_interceptor_index, outboundEp, req)) {
-                if(respondFromJavaInterceptor{{cut qualifiedServiceName " "}}(invocationContext, <@untainted>outboundEp)) {
-                    // return only if  interceptor returned false and respond is called from interceptor.
+                if (respondFromJavaInterceptor{{cut qualifiedServiceName " "}}(invocationContext, <@untainted>outboundEp)) {
+                    // return only if interceptor returned false and respond is called from interceptor.
                     return;
                 }
             }
@@ -249,13 +257,13 @@ service {{cut qualifiedServiceName " "}} on {{#api.transport}}{{#equals . "http"
             if({{operationId}}_response_interceptor_index == -1) {
             {{^isJavaResponseInterceptor}}
                 {{responseInterceptor}} (outboundEp, clientResponse);
-                if(invocationContext.attributes.hasKey(gateway:RESPOND_DONE) && <boolean>invocationContext.attributes[gateway:RESPOND_DONE]) {
+                if (invocationContext.attributes.hasKey(gateway:RESPOND_DONE) && <boolean>invocationContext.attributes[gateway:RESPOND_DONE]) {
                     return;
                 }
             {{/isJavaResponseInterceptor}}
             } else {
-                if(!gateway:invokeResponseInterceptor({{operationId}}_response_interceptor_index, outboundEp, clientResponse)) {
-                    if(respondFromJavaInterceptor{{cut qualifiedServiceName " "}}(invocationContext, <@untainted>outboundEp)) {
+                if (!gateway:invokeResponseInterceptor({{operationId}}_response_interceptor_index, outboundEp, clientResponse)) {
+                    if (respondFromJavaInterceptor{{cut qualifiedServiceName " "}}(invocationContext, <@untainted>outboundEp)) {
                         // return only if interceptor returned false and respond is called from interceptor.
                         return;
                     }
@@ -264,24 +272,26 @@ service {{cut qualifiedServiceName " "}} on {{#api.transport}}{{#equals . "http"
             {{~#if @root.responseInterceptor}}
             {{#equals @root.responseInterceptor responseInterceptor}}
             {{else}}
-            if({{operationId}}_api_response_interceptor_index == -1) {
+            if ({{operationId}}_api_response_interceptor_index == -1) {
             {{^@root.isJavaResponseInterceptor}}
                 {{@root.responseInterceptor}} (outboundEp, clientResponse);
-                if(invocationContext.attributes.hasKey(gateway:RESPOND_DONE) && <boolean>invocationContext.attributes[gateway:RESPOND_DONE]) {
+                if (invocationContext.attributes.hasKey(gateway:RESPOND_DONE) && <boolean>invocationContext.attributes[gateway:RESPOND_DONE]) {
                     return;
                 }
             {{/@root.isJavaResponseInterceptor}}
             } else {
-                if(!gateway:invokeResponseInterceptor({{operationId}}_api_response_interceptor_index, outboundEp, clientResponse)) {
-                    if(respondFromJavaInterceptor{{cut qualifiedServiceName " "}}(invocationContext, <@untainted>outboundEp)) {
+                if (!gateway:invokeResponseInterceptor({{operationId}}_api_response_interceptor_index, outboundEp, clientResponse)) {
+                    if (respondFromJavaInterceptor{{cut qualifiedServiceName " "}}(invocationContext, <@untainted>outboundEp)) {
                         // return only if interceptor returned false and respond is called from interceptor.
                         return;
                     }
                 }
             }{{/equals}}{{/if}}
+
+            invocationContext.attributes[gateway:DID_EP_RESPOND] = true;
             var outboundResult = outboundEp->respond(clientResponse);
             if (outboundResult is error) {
-                log:printError("Error when sending response", err = outboundResult);
+                gateway:printError({{cut qualifiedServiceName " "}}Key, "Error when sending response", outboundResult);
             }
         } else {
             http:Response res = new;
@@ -311,10 +321,10 @@ service {{cut qualifiedServiceName " "}} on {{#api.transport}}{{#equals . "http"
             } else {
                 gateway:attachGrpcErrorHeaders (res, errorDescription);
             }
-            log:printError("Error in client response", err = clientResponse);
+            gateway:printError({{cut qualifiedServiceName " "}}Key, "Error in client response", clientResponse);
             var outboundResult = outboundEp->respond(res);
             if (outboundResult is error) {
-                log:printError("Error when sending response", err = outboundResult);
+                gateway:printError({{cut qualifiedServiceName " "}}Key, "Error when sending response", outboundResult);
             }
         }
     }
@@ -326,7 +336,7 @@ service {{cut qualifiedServiceName " "}} on {{#api.transport}}{{#equals . "http"
             req.removeHeader("Expect");
             var result = outboundEp->continue();
             if (result is error) {
-            log:printError("Error while sending 100 continue response", err = result);
+            gateway:printError({{cut qualifiedServiceName " "}}Key, "Error while sending 100 continue response", result);
             }
         }
     }
@@ -351,7 +361,7 @@ function respondFromJavaInterceptor{{cut qualifiedServiceName " "}}(runtime:Invo
             http:Response clientResponse = <http:Response>invocationContext.attributes[gateway:RESPONSE_OBJECT];
             var outboundResult = outboundEp->respond(clientResponse);
             if (outboundResult is error) {
-                log:printError("Error when sending response from the interceptor", err = outboundResult);
+                gateway:printError({{cut qualifiedServiceName " "}}Key, "Error when sending response from the interceptor", outboundResult);
             }
             tryRespond = true;
         }

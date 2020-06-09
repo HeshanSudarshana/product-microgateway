@@ -52,8 +52,6 @@
   serverUrl = "https://localhost:9443"
   # The token endpoint context of the Key Manager server
   tokenContext = "oauth2"
-  # timestamp skew in seconds which added when checking the token validity period
-  timestampSkew = 5000
   # External Key Manager
   external = false
   # Basic security configurations
@@ -100,6 +98,14 @@
   certificateAlias = "wso2apim310"
   # Validate subscribed APIs
   validateSubscription = false
+  #support custom claim mapping
+  claimMapperClassName = "org.wso2.micro.gateway.jwtTransformer.DefaultJwtTransformer"
+  [[jwtTokenConfig.claims]]
+    remoteClaim = "scp"
+    localClaim = "scope"
+  [[jwtTokenConfig.claims]]
+    remoteClaim = "FName"
+    localClaim = "firstName"
 # Issuer 2
 [[jwtTokenConfig]]
   issuer = "https://host:port/issuer"
@@ -107,6 +113,14 @@
   certificateAlias = "alias"
   # Validate subscribed APIs
   validateSubscription = false
+  #support custom claim mapping
+  claimMapperClassName = "org.wso2.micro.gateway.jwtTransformer.customJwtTransformer"
+  [[jwtTokenConfig.claims]]
+    remoteClaim = "scps"
+    localClaim = "scope"
+  [[jwtTokenConfig.claims]]
+    remoteClaim = "FN"
+    localClaim = "firstName"
 
 # JWT token revocation configurations
 [tokenRevocationConfig]
@@ -191,14 +205,41 @@
   enableRequestValidation = false
   enableResponseValidation = false
 
-# Enable http2
+# Enable http2 for the microgateway listeners.
 [http2]
   enable = true
 
-# HTTP client configuration
+# HTTP client configuration. These are used when gateway connects with the upstream backend endpoints
 [httpClients]
   # Hostname verification
   verifyHostname=true
+  # Skip validating certificates when ssl is used
+  disableSslVerification = false
+  # Enable http2 when connecting with upstream backend endpoints.
+  enableHttp2 = true
+  #Proxy configurations required when microgateway connects to an upstream back end via a corporate proxy.
+  [httpClients.proxy]
+    #Enable proxy when connecting with backend services.
+    enable = false
+    #Enable proxy when microgateway communicating with internal components like key manager, analytics and etc
+    enableInternalServices = false
+    # Host or IP address of the proxy server
+    host = ""
+    # Port on which proxy server is listening
+    port = 0
+    # Security credentials if the proxy server is protected.
+    username = ""
+    password = ""
+  # Configurations for managing HTTP client(sender) connection pool
+  [httpClients.poolConfig]
+    #Max active connections per route(host:port). Default value is -1 which indicates unlimited
+    maxActiveConnections = -1
+    #Maximum number of idle connections allowed for the pool
+    maxIdleConnections = 100
+    #Maximum amount of time, the client should wait for an idle connection before it sends an error when the pool is exhausted
+    waitTimeInMillis = 30000
+    #Maximum active streams per connection. This only applies to HTTP/2.
+    maxActiveStreamsPerConnection = 50
 
 # Mutual SSL configuration
 [mutualSSLConfig]
@@ -238,6 +279,62 @@
   throttleEndpointUrl = "https://localhost:9443/endpoints"
   # username:password to create the connection to the central traffic manager
   throttleEndpointbase64Header = "admin:admin"
+  #Configurations related to retrieve custom throttle policy related key templates from traffic manager or key manager.
+  [throttlingConfig.dataRetriever]
+    serverUrl = "https://localhost:9443/throttle/data/v1"
+    username = "admin"
+    password = "admin"
+
+
+  # Throttling configurations related to event publishing using a binary connection
+  [throttlingConfig.binary]
+    enabled = true
+    # Credentials required to establish connection between Traffic Manager
+    username = "admin"
+    password = "admin"
+    # Receiver URL and the authentication URL of the Traffic manager node/nodes
+    [[throttlingConfig.binary.URLGroup]]
+      receiverURL = "tcp://localhost:9611"
+      authURL = "ssl://localhost:9711"
+    # Data publisher object pool configurations
+    [throttlingConfig.binary.publisherPool]
+      maxIdle = 1000
+      initIdleCapacity = 200
+    # Data publisher thread pool configurations
+    [throttlingConfig.binary.publisherThreadPool]
+      corePoolSize = 200
+      maxPoolSize = 1000
+      keepAliveTime = 200
+    [throttlingConfig.binary.agent]
+      # SSL Protocols
+      sslEnabledProtocols = "TLSv1,TLSv1.1,TLSv1.2"
+      # ciphers
+      ciphers="TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,TLS_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256,TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA, TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA,TLS_ECDH_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256  ,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,TLS_DHE_DSS_WITH_AES_128_GCM_SHA256  ,TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA,TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,SSL_RSA_WITH_3DES_EDE_CBC_SHA, TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA,TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA,SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA, SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA,TLS_EMPTY_RENEGOTIATION_INFO_SCSV"
+      # The size of the queue event disruptor which handles events before they are published.
+      # The value specified should always be the result of an exponent with 2 as the base.
+      queueSize = 32768
+      # The maximum number of events in a batch sent to the queue event disruptor at a given time
+      batchSize = 200
+      # The number of threads that will be reserved to handle events at the time you start
+      corePoolSize = 1
+      # Socket timeout
+      socketTimeoutMS = 30000
+      # The maximum number of threads that should be reserved at any given time to handle events
+      maxPoolSize = 1
+      # The amount of time which threads in excess of the core pool size may remain idle before being terminated.
+      keepAliveTimeInPool = 20
+      # The time interval between reconnection
+      reconnectionInterval = 30
+      # TCP connection pool configurations (for data publishing)
+      maxTransportPoolSize = 250
+      maxIdleConnections = 250
+      evictionTimePeriod = 5500
+      minIdleTimeInPool = 5000
+      # SSL connection pool configurations (for authentication)
+      secureMaxIdleTransportPoolSize = 250
+      secureMaxIdleConnections = 250
+      secureEvictionTimePeriod = 5500
+      secureMinIdleTimeInPool = 5000
 
 # Observability configurations
 [b7a.observability]
@@ -296,3 +393,42 @@
     [[apikey.issuer.api]]
       name="MyAPI"
       versions="*"
+
+# JWT Generator configurations
+[jwtGeneratorConfig]
+  # Enable jwt generator
+  jwtGeneratorEnabled=false
+  # Dialect prefix that can be added to the claims
+  claimDialect="http://wso2.org/claims"
+  # Signature algorithm used to sign the JWT token (only SHA256withRSA and NONE is supported)
+  signingAlgorithm="SHA256withRSA"
+  # Certificate alias from the keystore
+  certificateAlias="ballerina"
+  # Private key alias from the keystore
+  privateKeyAlias="ballerina"
+  # JWT token expiry time - ms (valid only if the jwt generator caching mechanism is disabled)
+  tokenExpiry=900000
+  # Restricted claims as an array that should not be included in the backend JWT token
+  # Example: restrictedClaims=["claim1","claim2","claim3"]
+  restrictedClaims=[]
+  # Token issuer standard claim
+  issuer="wso2.org/products/am"
+  # Token audience standard claim
+  audience=["http://org.wso2.apimgt/gateway"]
+  # JWT token generator implementation
+  generatorImpl="org.wso2.micro.gateway.jwt.generator.MGWJWTGeneratorImpl"
+  # JWT Generator cache configurations
+  [jwtGeneratorConfig.jwtGeneratorCaching]
+    # Enable jwt generator token caching
+    tokenCacheEnable=true
+    # Token cache expiry time (ms)
+    tokenCacheExpiryTime=900000
+    # Token cache capacity
+    tokenCacheCapacity=10000
+    # Token cache eviction factor
+    tokenCacheEvictionFactor=0.25
+
+# server configuration
+[server]
+  # timestamp skew in milliseconds which added when checking the token validity period
+  timestampSkew = 5000

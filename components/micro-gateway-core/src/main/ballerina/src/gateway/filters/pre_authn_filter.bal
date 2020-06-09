@@ -45,7 +45,16 @@ public type PreAuthnFilter object {
             printDebug(KEY_PRE_AUTHN_FILTER, "Skip all filter annotation set in the service. Skip the filter");
             return true;
         }
-        if (response.statusCode == 401) {
+
+        // when unauthenticated response is coming from a backend/interceptor,
+        // we should avoid sending mgw unauthenticated error response to the client
+        map<any> attributes = runtime:getInvocationContext().attributes;
+        // check if the response is coming from the backend.
+        boolean didEpRespond = attributes.hasKey(DID_EP_RESPOND) && <boolean>attributes[DID_EP_RESPOND];
+        // check if the response is coming from an interceptor.
+        boolean isRespondDone = attributes.hasKey(RESPOND_DONE) && <boolean>attributes[RESPOND_DONE];
+
+        if (response.statusCode == 401 && !didEpRespond && !isRespondDone) {
             runtime:InvocationContext invocationContext = runtime:getInvocationContext();
             //This handles the case where the empty Bearer/Basic value provided for authorization header. If all the
             //auth handlers are invoked and returning 401 without proper error message in the context means, invalid
@@ -139,14 +148,14 @@ returns boolean {
             printDebug(KEY_PRE_AUTHN_FILTER, "Authentication header is missing for secured resource");
             setErrorMessageToInvocationContext(API_AUTH_MISSING_CREDENTIALS);
             setErrorMessageToFilterContext(context, API_AUTH_MISSING_CREDENTIALS);
-            sendErrorResponse(caller, request, context);
+            sendErrorResponse(caller, request, context, KEY_PRE_AUTHN_FILTER);
             return false;
         }
         if (!canHandleAuthentication) {
             printDebug(KEY_PRE_AUTHN_FILTER, "Request does not have a valid authentication scheme");
             setErrorMessageToInvocationContext(API_AUTH_PROVIDER_INVALID);
             setErrorMessageToFilterContext(context, API_AUTH_PROVIDER_INVALID);
-            sendErrorResponse(caller, request, context);
+            sendErrorResponse(caller, request, context, KEY_PRE_AUTHN_FILTER);
             return false;
         }
     }
