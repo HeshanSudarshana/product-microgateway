@@ -9,6 +9,7 @@ require (
 	github.com/getkin/kin-openapi v0.8.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-openapi/spec v0.19.7
+	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang/protobuf v1.4.0
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/gorilla/mux v1.7.4

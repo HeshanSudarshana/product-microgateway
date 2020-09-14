@@ -22,10 +22,12 @@ import (
 	"fmt"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	"github.com/fsnotify/fsnotify"
 	myals "github.com/wso2/micro-gw/internal/pkg/accesslogs"
 	apiserver "github.com/wso2/micro-gw/internal/pkg/api"
 	mgwconfig "github.com/wso2/micro-gw/internal/pkg/confTypes"
+	"github.com/wso2/micro-gw/internal/pkg/mysqlDB"
+	"github.com/wso2/micro-gw/internal/pkg/nodeUpdate"
+	"github.com/wso2/micro-gw/internal/pkg/oasparser/cache"
 	"net"
 	"os"
 	"os/signal"
@@ -55,9 +57,6 @@ var (
 	mode string
 
 	version int32
-
-	cache cachev2.SnapshotCache
-
 )
 
 const (
@@ -185,8 +184,8 @@ func RunManagementServer(ctx context.Context, server xds.Server, port uint) {
 
 func updateEnvoy(location string) {
 	var nodeId string
-	if len(cache.GetStatusKeys()) > 0 {
-		nodeId = cache.GetStatusKeys()[0]
+	if len(cache.Cache.GetStatusKeys()) > 0 {
+		nodeId = cache.Cache.GetStatusKeys()[0]
 	}
 
 	listeners, clusters, routes, endpoints := oasParser.GetProductionSources(location)
@@ -196,7 +195,7 @@ func updateEnvoy(location string) {
 	snap := cachev2.NewSnapshot(fmt.Sprint(version), endpoints, clusters, routes, listeners, nil)
 	snap.Consistent()
 
-	err := cache.SetSnapshot(nodeId, snap)
+	err := cache.Cache.SetSnapshot(nodeId, snap)
 	if err != nil {
 		logrus.Error(err)
 	}
@@ -206,12 +205,12 @@ func updateEnvoy(location string) {
 func Run(conf *mgwconfig.Config) {
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)
-	watcher, _ := fsnotify.NewWatcher()
-	err := watcher.Add(conf.Apis.Location)
+	//watcher, _ := fsnotify.NewWatcher()
+	//err := watcher.Add(conf.Apis.Location)
 
-	if err != nil {
-		logrus.Panic("Error reading the api definitions.", err)
-	}
+	//if err != nil {
+	//	logrus.Panic("Error reading the api definitions.", err)
+	//}
 
 	flag.Parse()
 	if debug {
@@ -222,24 +221,31 @@ func Run(conf *mgwconfig.Config) {
 
 	logrus.Printf("Starting control plane")
 
-	cache = cachev2.NewSnapshotCache(mode != Ads, Hasher{}, nil)
+	cache.Cache = cachev2.NewSnapshotCache(mode != Ads, Hasher{}, nil)
 
-	srv := xds.NewServer(ctx, cache, nil)
+	srv := xds.NewServer(ctx, cache.Cache, nil)
 
 	// start the xDS server
 	RunManagementServer(ctx, srv, port)
 	go apiserver.Start(conf)
 
-	updateEnvoy(conf.Apis.Location)
+	swaggerFiles, err := mysqlDB.GetAllSwaggerFilesFromDB()
+	if err != nil {
+		log.Println("Failed to initiate with the swagger files")
+		log.Println(err)
+	} else {
+		nodeUpdate.UpdateEnvoyMgw(swaggerFiles)
+	}
+	//updateEnvoy(conf.Apis.Location)
 OUTER:
 	for {
 		select {
-		case c := <-watcher.Events:
-			switch c.Op.String() {
-			case "WRITE":
-				logrus.Info("Loading updated swagger definition...")
-				updateEnvoy(conf.Apis.Location)
-			}
+		//case c := <-watcher.Events:
+		//	switch c.Op.String() {
+		//	case "WRITE":
+		//		logrus.Info("Loading updated swagger definition...")
+		//		updateEnvoy(conf.Apis.Location)
+		//	}
 		case s := <-sig:
 			switch s {
 			case os.Interrupt:
