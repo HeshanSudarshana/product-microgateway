@@ -184,7 +184,11 @@ public const string GRPC_ANALYTICS_ENABLE = "enable";
 public const string GRPC_ENDPOINT_URL = "endpointURL";
 public const string GRPC_RETRY_TIME_MILLISECONDS = "reconnectTimeInMillies";
 public const string GRPC_TIMEOUT_MILLISECONDS = "timeoutInMillis";
- 
+
+//ELK analytics related constants
+public const string ELK_ANALYTICS = "analytics.elkAnalytics";
+public const string ELK_ANALYTICS_ENABLE = "enable";
+
 //validation_filter related constatnts
 public const string PATHS = "paths";
 public const string PARAMETERS = "parameters";

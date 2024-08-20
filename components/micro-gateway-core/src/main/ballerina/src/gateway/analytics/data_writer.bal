@@ -33,6 +33,9 @@ function setRequestAttributesToContext(http:Request request, http:FilterContext 
     boolean isSecured = <boolean>context.attributes[IS_SECURED];
     printDebug(KEY_THROTTLE_FILTER, "Resource level throttled out: false");
     runtime:InvocationContext invocationContext = runtime:getInvocationContext();
+    printDebug(KEY_THROTTLE_FILTER, "HERE 123 request: " + request.toString());
+    printDebug(KEY_THROTTLE_FILTER, "HERE 123 filterContext: " + context.attributes.toString());
+    printDebug(KEY_THROTTLE_FILTER, "HERE 123 invocationContext: " + invocationContext.attributes.toString());
     if (isSecured && invocationContext.attributes.hasKey(AUTHENTICATION_CONTEXT)) {
         AuthenticationContext authContext = <AuthenticationContext>invocationContext.attributes[AUTHENTICATION_CONTEXT];
         context.attributes[APPLICATION_OWNER_PROPERTY] = authContext.subscriber;

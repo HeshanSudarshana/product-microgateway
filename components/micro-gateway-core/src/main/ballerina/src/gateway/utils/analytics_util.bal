@@ -23,6 +23,7 @@ import ballerina/stringutils;
 boolean isAnalyticsEnabled = false;
 boolean isOldAnalyticsEnabled = false;
 boolean configsRead = false;
+boolean isELKAnalyticsEnabled = false;
 
 //gRPCConfigs
 boolean isGrpcAnalyticsEnabled = false;
@@ -97,6 +98,8 @@ function populateThrottleAnalyticsDTO(http:FilterContext context) returns (Throt
 }
 
 function populateFaultAnalyticsDTO(http:FilterContext context, string err) returns (FaultDTO | error) {
+    printDebug(KEY_ANALYTICS_FILTER, "Populating fault analytics DTO context attributes : " + context.attributes.toString());
+    printDebug(KEY_ANALYTICS_FILTER, "Populating fault analytics DTO Error message : " + err);
     boolean isSecured = <boolean>context.attributes[IS_SECURED];
     FaultDTO eventDto = {};
     time:Time time = time:currentTime();
@@ -207,6 +210,11 @@ function initializeAnalytics() {
             printDebug(KEY_ANALYTICS_FILTER, "Analytics is disabled");
         }
     }
+}
+
+function initializeELKAnalytics() {
+    printDebug(KEY_UTILS, "ELK Analytics configuration values read");
+    isELKAnalyticsEnabled = <boolean>getConfigBooleanValue(ELK_ANALYTICS, ELK_ANALYTICS_ENABLE, DEFAULT_ANALYTICS_ENABLED);
 }
 
 public function retrieveHostname(string key, string defaultHost) returns string {

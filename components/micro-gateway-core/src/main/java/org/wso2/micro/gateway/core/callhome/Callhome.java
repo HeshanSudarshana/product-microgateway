@@ -40,6 +40,7 @@ public class Callhome {
      */
     public static void runCallHome(String trustStoreLocation, String trustStorePassword) {
         try {
+            log.info("Callhome here");
             String productHome = getRuntimeHome();
             CallHomeInfo callhomeinfo = Util.createCallHomeInfo(productHome, trustStoreLocation, trustStorePassword);
             CallHomeExecutor.execute(callhomeinfo);

@@ -82,9 +82,13 @@ public function generateRequestResponseExecutionDataEvent(http:Response response
 {
     RequestResponseExecutionDTO requestResponseExecutionDTO = {};
     boolean isSecured = <boolean>context.attributes[IS_SECURED];
+    printDebug(KEY_ANALYTICS_FILTER, "HERE context : " + context.attributes.toString());
     runtime:InvocationContext invocationContext = runtime:getInvocationContext();
+    printDebug(KEY_ANALYTICS_FILTER, "HERE invocationContext : " + invocationContext.attributes.toString());
+    printDebug(KEY_ANALYTICS_FILTER, "HERE response : " + response.toString());
     if (isSecured && invocationContext.attributes.hasKey(AUTHENTICATION_CONTEXT)) {
         AuthenticationContext authContext = <AuthenticationContext>invocationContext.attributes[AUTHENTICATION_CONTEXT];
+        printDebug(KEY_ANALYTICS_FILTER, "HERE authContext : " + authContext.toString());
         requestResponseExecutionDTO.apiCreator = authContext.apiPublisher;
         requestResponseExecutionDTO.metaClientType = authContext.keyType;
         requestResponseExecutionDTO.applicationConsumerKey = authContext.consumerKey;
